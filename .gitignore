@@ -15,6 +15,7 @@ web-build/
 *.p8
 *.p12
 *.key
+*.keystore
 *.mobileprovision
 
 # Metro
@@ -39,3 +40,9 @@ yarn-error.*
 /ios
 /android
 *.apk
+
+# keystore credentials (NEVER commit these)
+keystore.properties
+keys/keystore.properties
+/keys/*.keystore
+/keys/*.jks
