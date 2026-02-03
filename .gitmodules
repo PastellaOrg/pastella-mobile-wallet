@@ -1,0 +1,3 @@
+[submodule "src/pastella-utils"]
+	path = src/pastella-utils
+	url = https://github.com/PastellaOrg/pastella-utils.git

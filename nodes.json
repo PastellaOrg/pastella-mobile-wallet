@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Pastella Mainnet Node 1",
+    "ip": "192.168.1.15",
+    "port": 21001,
+    "ssl": false
+  },
+  {
+    "name": "Pastella Mainnet Node 2",
+    "ip": "192.168.1.15",
+    "port": 22001,
+    "ssl": false
+  }
+]
