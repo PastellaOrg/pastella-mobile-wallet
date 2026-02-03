@@ -21,7 +21,8 @@
         "foregroundImage": "./assets/logo.png",
         "monochromeImage": "./assets/logo-monochrome.png",
         "backgroundColor": "#282729"
-      }
+      },
+      "keystore": "./keys/pastella-release.keystore"
     },
     "web": {
       "favicon": "./assets/logo.png"
