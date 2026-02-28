@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../../theme/colors';
 import nodeService, { Node, NodeStatus } from '../../services/nodeService';
 import { ToastManager } from '../../components/shared';
+import AddNodeModal from '../../components/modals/AddNodeModal';
 import * as Haptics from 'expo-haptics';
 
 type NodesNavigationProp = StackNavigationProp<any, 'Nodes'>;
@@ -24,10 +26,16 @@ const NodesScreen: React.FC<Props> = ({ navigation }) => {
   const [nodes, setNodes] = useState<NodeStatus[]>([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [checkingAll, setCheckingAll] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
-    loadNodes();
+    initAndLoadNodes();
   }, []);
+
+  const initAndLoadNodes = async () => {
+    await nodeService.init();
+    loadNodes();
+  };
 
   const loadNodes = async () => {
     try {
@@ -96,6 +104,54 @@ const NodesScreen: React.FC<Props> = ({ navigation }) => {
     return selectedNode?.ip === node.ip && selectedNode?.port === node.port;
   };
 
+  const handleAddNode = async (node: Node): Promise<boolean> => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const success = await nodeService.addCustomNode(node);
+    if (success) {
+      ToastManager.success(`Added ${node.name}`);
+      loadNodes();
+    }
+    return success;
+  };
+
+  const handleDeleteNode = (node: NodeStatus) => {
+    const isCustom = nodeService.isCustomNode(node);
+    if (!isCustom) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      ToastManager.warning('Cannot delete default nodes');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Node',
+      `Are you sure you want to delete "${node.name}"?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            const success = await nodeService.removeCustomNode(node);
+            if (success) {
+              ToastManager.success(`Deleted ${node.name}`);
+              // If deleted node was selected, clear selection
+              if (isSelected(node)) {
+                setSelectedNode(null);
+              }
+              loadNodes();
+            } else {
+              ToastManager.error('Failed to delete node');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -110,17 +166,28 @@ const NodesScreen: React.FC<Props> = ({ navigation }) => {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Nodes</Text>
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={handleRefreshAll}
-          disabled={checkingAll}
-        >
-          <Ionicons
-            name="refresh"
-            size={20}
-            color={checkingAll ? colors.textMuted : colors.primary}
-          />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowAddModal(true);
+            }}
+          >
+            <Ionicons name="add" size={22} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={handleRefreshAll}
+            disabled={checkingAll}
+          >
+            <Ionicons
+              name="refresh"
+              size={20}
+              color={checkingAll ? colors.textMuted : colors.primary}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Nodes List */}
@@ -225,6 +292,17 @@ const NodesScreen: React.FC<Props> = ({ navigation }) => {
 
                 {/* Right: Badges Stack */}
                 <View style={styles.nodeRightSection}>
+                  {/* Delete button for custom nodes */}
+                  {nodeService.isCustomNode(node) && (
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteNode(node)}
+                      disabled={node.checking}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={colors.error} />
+                    </TouchableOpacity>
+                  )}
+
                   {/* Ping/Latency */}
                   {node.checking ? (
                     <ActivityIndicator size={14} color={colors.textMuted} />
@@ -266,6 +344,14 @@ const NodesScreen: React.FC<Props> = ({ navigation }) => {
           ))
         )}
       </ScrollView>
+
+      {/* Add Node Modal */}
+      <AddNodeModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={handleAddNode}
+        existingNodes={nodes}
+      />
     </View>
   );
 };
@@ -299,6 +385,18 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.backgroundLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -442,6 +540,14 @@ const styles = StyleSheet.create({
   nodeBadgeText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: `${colors.error}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

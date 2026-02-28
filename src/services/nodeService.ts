@@ -5,12 +5,73 @@ import { Node, NodeStatus, NodeInfo } from '../types/nodes';
 const nodesConfig = require('../../nodes.json') as Node[];
 
 const SELECTED_NODE_KEY = '@pastella_selected_node';
+const CUSTOM_NODES_KEY = '@pastella_custom_nodes';
 
 class NodeService {
   private nodes: Node[] = nodesConfig;
+  private customNodes: Node[] = [];
+
+  async init(): Promise<void> {
+    await this.loadCustomNodes();
+  }
+
+  private async loadCustomNodes(): Promise<void> {
+    try {
+      const customNodesJson = await AsyncStorage.getItem(CUSTOM_NODES_KEY);
+      if (customNodesJson) {
+        this.customNodes = JSON.parse(customNodesJson);
+      }
+    } catch (error) {
+      console.error('Error loading custom nodes:', error);
+      this.customNodes = [];
+    }
+  }
 
   getNodes(): Node[] {
-    return this.nodes;
+    return [...this.nodes, ...this.customNodes];
+  }
+
+  async addCustomNode(node: Node): Promise<boolean> {
+    try {
+      // Check if node already exists
+      const exists = this.customNodes.find(
+        n => n.ip === node.ip && n.port === node.port
+      );
+      if (exists) {
+        return false; // Node already exists
+      }
+
+      this.customNodes.push(node);
+      await AsyncStorage.setItem(CUSTOM_NODES_KEY, JSON.stringify(this.customNodes));
+      return true;
+    } catch (error) {
+      console.error('Error adding custom node:', error);
+      return false;
+    }
+  }
+
+  async removeCustomNode(node: Node): Promise<boolean> {
+    try {
+      const index = this.customNodes.findIndex(
+        n => n.ip === node.ip && n.port === node.port
+      );
+      if (index === -1) {
+        return false; // Node not found in custom nodes
+      }
+
+      this.customNodes.splice(index, 1);
+      await AsyncStorage.setItem(CUSTOM_NODES_KEY, JSON.stringify(this.customNodes));
+      return true;
+    } catch (error) {
+      console.error('Error removing custom node:', error);
+      return false;
+    }
+  }
+
+  isCustomNode(node: Node): boolean {
+    return this.customNodes.some(
+      n => n.ip === node.ip && n.port === node.port
+    );
   }
 
   async getSelectedNode(): Promise<Node | null> {

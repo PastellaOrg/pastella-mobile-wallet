@@ -1,14 +1,26 @@
 [
   {
+    "name": "Pastella Mainnet Node 1 (SSL)",
+    "ip": "seed.pastella.org",
+    "port": 443,
+    "ssl": true
+  },
+  {
     "name": "Pastella Mainnet Node 1",
-    "ip": "192.168.1.15",
+    "ip": "seed.pastella.org",
     "port": 21001,
     "ssl": false
   },
   {
     "name": "Pastella Mainnet Node 2",
-    "ip": "192.168.1.15",
-    "port": 22001,
+    "ip": "seed.pastella.org",
+    "port": 21101,
+    "ssl": false
+  },
+  {
+    "name": "Pastella Mainnet Node 3",
+    "ip": "seed.pastella.org",
+    "port": 21201,
     "ssl": false
   }
 ]
