@@ -9,8 +9,8 @@
     "web": "expo start --web",
     "build": "expo prebuild",
     "build:clean": "expo prebuild --clean",
-    "build:release": "npm run build && npm run setup-release-signing && cd android && gradlew.bat assembleRelease && move app\\build\\outputs\\apk\\release\\app-release.apk ..\\pastella-wallet.apk",
-    "build:debug": "npm run build && cd android && gradlew.bat assembleRelease && move app\\build\\outputs\\apk\\release\\app-release.apk ..\\pastella-wallet.apk",
+    "build:release": "npm run build && node scripts/setup-android-manifest.js && npm run setup-release-signing && cd android && gradlew.bat assembleRelease && move app\\build\\outputs\\apk\\release\\app-release.apk ..\\pastella-wallet.apk",
+    "build:debug": "npm run build && node scripts/setup-android-manifest.js && cd android && gradlew.bat assembleRelease && move app\\build\\outputs\\apk\\release\\app-release.apk ..\\pastella-wallet.apk",
     "setup-release-signing": "node scripts/setup-release-signing.js"
   },
   "dependencies": {
