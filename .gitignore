@@ -44,5 +44,6 @@ yarn-error.*
 # keystore credentials (NEVER commit these)
 keystore.properties
 keys/keystore.properties
-/keys/*.keystore
-/keys/*.jks
+keys/
+keys/*.keystore
+keys/*.jks

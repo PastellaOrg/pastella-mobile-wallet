@@ -1,3 +1,6 @@
+// Polyfill for Web Crypto API - must be first import
+import 'react-native-get-random-values';
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';
