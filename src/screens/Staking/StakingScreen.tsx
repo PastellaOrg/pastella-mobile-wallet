@@ -255,17 +255,70 @@ const StakingScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
+      // Get wallet address
+      const wallet = await SecureStorage.loadWallet();
+      if (!wallet || !wallet.address) {
+        setError('Wallet not found');
+        if (showLoading) {
+          setLoading(false);
+        }
+        setRefreshing(false);
+        return;
+      }
+
       const api = new DaemonApi({
         ip: node.ip,
         port: node.port,
         ssl: node.ssl,
       });
 
-      // Get all stakes using the /getallstakes endpoint
-      const response = await api.getAllStakes({ limit: 100 });
+      // Get user stakes using the /getuserstakes endpoint with wallet address
+      const response = await api.getUserStakes({ address: wallet.address });
 
       if (response.status === 'OK') {
-        setAllStakesData(response as AllStakesData);
+        // Get current height for calculating progress - try /info first, fall back to /getheight
+        let currentHeight = 0;
+        try {
+          const info = await api.getInfo();
+          currentHeight = info.last_known_block_index || info.current_height || 0;
+        } catch (e) {
+          try {
+            const heightResponse = await api.getHeight();
+            currentHeight = heightResponse.height;
+          } catch (e2) {
+            currentHeight = 0;
+          }
+        }
+
+        // Enrich stakes with missing fields
+        const enrichedStakes = (response.stakes || []).map((stake: any) => {
+          const blocksRemaining = Math.max(0, stake.unlock_time - currentHeight);
+          const totalBlocks = stake.blocks_staked + blocksRemaining;
+          const progressPercentage = totalBlocks > 0 ? (stake.blocks_staked / totalBlocks) * 100 : 0;
+          const roiDaily = stake.est_daily_reward && stake.amount
+            ? (stake.est_daily_reward / stake.amount) * 100
+            : 0;
+
+          return {
+            ...stake,
+            progress_percentage: progressPercentage,
+            blocks_remaining: blocksRemaining,
+            roi_daily: roiDaily,
+          };
+        });
+
+        // Map GetUserStakesResponse to AllStakesData format
+        setAllStakesData({
+          status: response.status,
+          stakes: enrichedStakes,
+          finished_stakes: [],
+          pagination: {
+            total_stakes: response.stake_count,
+            page: 1,
+            limit: 100,
+            total_pages: 1,
+          },
+        } as AllStakesData);
       } else {
         setError(t.staking.errorLoadingStakes);
       }
@@ -848,26 +901,26 @@ const StakingScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Progress Details - Always visible */}
+        <View style={styles.progressSection}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>
+              {stake.blocks_staked.toLocaleString()} / {(stake.blocks_staked + stake.blocks_remaining).toLocaleString()} blocks
+            </Text>
+            <Text style={styles.progressPercentage}>
+              {formatPercentage(stake.progress_percentage)}
+            </Text>
+          </View>
+          {stake.blocks_remaining > 0 && (
+            <Text style={styles.progressSubtext}>
+              {stake.blocks_remaining.toLocaleString()} {t.staking.blocksLeft}
+            </Text>
+          )}
+        </View>
+
         {/* Expanded Details */}
         {isExpanded && (
-          <>
-            {/* Progress Details - Compact */}
-            <View style={styles.progressSection}>
-              <View style={styles.progressHeader}>
-                <Text style={styles.progressLabel}>
-                  {stake.blocks_staked.toLocaleString()} / {(stake.blocks_staked + stake.blocks_remaining).toLocaleString()} blocks
-                </Text>
-                <Text style={styles.progressPercentage}>
-                  {formatPercentage(stake.progress_percentage)}
-                </Text>
-              </View>
-              {stake.blocks_remaining > 0 && (
-                <Text style={styles.progressSubtext}>
-                  {stake.blocks_remaining.toLocaleString()} {t.staking.blocksLeft}
-                </Text>
-              )}
-            </View>
-
+          <View style={styles.expandedContent}>
             {/* Rewards - 2x2 Grid for compactness */}
             <View style={styles.rewardsGrid}>
               {/* Row 1 */}
@@ -912,7 +965,7 @@ const StakingScreen: React.FC<Props> = ({ navigation }) => {
                 }
               </Text>
             </View>
-          </>
+          </View>
         )}
       </View>
     );
@@ -1032,7 +1085,7 @@ const StakingScreen: React.FC<Props> = ({ navigation }) => {
         {hasAnyStakes && allStakesData && (
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
-              {t.staking.networkStakes} ({allStakesData.pagination?.total_stakes || 0})
+              Your stakes ({allStakesData.pagination?.total_stakes || 0})
             </Text>
           </View>
         )}
@@ -1581,7 +1634,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundLight,
     borderRadius: borderRadius.lg,
     padding: spacing.sm,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
     marginBottom: spacing.sm,
     overflow: 'visible',
   },
@@ -1621,8 +1674,11 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   expandIcon: {},
+  expandedContent: {
+    marginTop: spacing.sm,
+  },
   progressSection: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -1655,7 +1711,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   rewardsGrid: {
-    marginBottom: spacing.md,
+    marginBottom: 0,
   },
   rewardRow: {
     flexDirection: 'row',
