@@ -81,10 +81,11 @@ export class SecureStorage {
 
   /**
    * Clear wallet data (for logout/wipe)
+   * Clears both wallet credentials and wallet state
    */
   static async clearWallet(): Promise<void> {
     try {
-      await AsyncStorage.removeItem(WALLET_STORAGE_KEY);
+      await AsyncStorage.multiRemove([WALLET_STORAGE_KEY, WALLET_STATE_KEY]);
     } catch (error) {
       console.error('Failed to clear wallet:', error);
       throw new Error('Failed to clear wallet');
